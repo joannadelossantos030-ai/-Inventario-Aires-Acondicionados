@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario de Aires Acondicionados</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom right, #0D47A1, #D32F2F);
+            padding: 20px;
+            color: white;
+        }
+
+        h1, h2, h3 {
+            text-align: center;
+        }
+
+        #login, #registro, #contenido {
+            background: rgba(255,255,255,0.9);
+            color: black;
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 450px;
+            margin: auto;
+        }
+
+        #contenido {
+            display: none;
+            max-width: 900px;
+        }
+
+        input {
+            padding: 10px;
+            width: 95%;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #999;
+        }
+
+        button {
+            padding: 12px;
+            width: 100%;
+            background: #0D47A1;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1565C0;
+        }
+
+        table {
+            width: 100%;
+            background: white;
+            color: black;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background: #D32F2F;
+            color: white;
+        }
+
+        .btn-edit {
+            background: #FFA000;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .btn-delete {
+            background: #D32F2F;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .logout {
+            background: #444;
+        }
+
+        #registro {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+    <h2>Iniciar Sesión</h2>
+    <input type="text" id="usuarioLogin" placeholder="Usuario">
+    <input type="password" id="contrasenaLogin" placeholder="Contraseña">
+    <button onclick="login()">Entrar</button>
+    <button onclick="mostrarRegistro()">Crear cuenta</button>
+</div>
+
+<!-- REGISTRO -->
+<div id="registro">
+    <h2>Crear Cuenta</h2>
+    <input type="text" id="usuarioNuevo" placeholder="Nuevo usuario">
+    <input type="email" id="correoNuevo" placeholder="Correo electrónico">
+    <input type="password" id="contrasenaNueva" placeholder="Nueva contraseña">
+
+    <button onclick="registrar()">Registrar</button>
+    <button onclick="volverLogin()">Volver</button>
+</div>
+
+<!-- CONTENIDO PRINCIPAL -->
+<div id="contenido">
+    <h1>Inventario de Aires Acondicionados</h1>
+
+    <button class="logout" onclick="cerrarSesion()">Cerrar sesión</button>
+
+    <div id="form">
+        <h3>Agregar / Editar Aire</h3>
+
+        <input type="number" id="id" placeholder="ID">
+        <input type="text" id="marca" placeholder="Marca">
+        <input type="text" id="modelo" placeholder="Modelo">
+        <input type="number" step="0.1" id="capacidad" placeholder="Capacidad (toneladas)">
+        <input type="number" step="0.01" id="precio" placeholder="Precio">
+        <input type="number" step="1" id="unidades" placeholder="Unidades">
+        
+        <!-- IMAGEN -->
+        <input type="file" id="imagen" accept="image/*">
+
+        <button onclick="agregarOEditar()">Guardar</button>
+    </div>
+
+    <h2>Lista de Aires</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Capacidad</th>
+                <th>Precio</th>
+                <th>Unidades</th>
+                <th>Imagen</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="listaTabla"></tbody>
+    </table>
+</div>
+
+<script>
+    // -------------------------
+    // LOGIN Y REGISTRO
+    // -------------------------
+
+    function mostrarRegistro() {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("registro").style.display = "block";
+    }
+
+    function volverLogin() {
+        document.getElementById("registro").style.display = "none";
+        document.getElementById("login").style.display = "block";
+    }
+
+    function registrar() {
+        const user = document.getElementById("usuarioNuevo").value;
+        const email = document.getElementById("correoNuevo").value;
+        const pass = document.getElementById("contrasenaNueva").value;
+
+        if (!user || !email || !pass) {
+            alert("Llena todos los campos");
+            return;
+        }
+
+        const datos = { usuario: user, correo: email, contrasena: pass };
+        localStorage.setItem("cuenta", JSON.stringify(datos));
+
+        alert("Cuenta creada correctamente");
+        volverLogin();
+    }
+
+    function login() {
+        const user = document.getElementById("usuarioLogin").value;
+        const pass = document.getElementById("contrasenaLogin").value;
+
+        const cuenta = JSON.parse(localStorage.getItem("cuenta"));
+
+        if (!cuenta) {
+            alert("No hay cuentas registradas.");
+            return;
+        }
+
+        if (user === cuenta.usuario && pass === cuenta.contrasena) {
+            document.getElementById("login").style.display = "none";
+            document.getElementById("contenido").style.display = "block";
+        } else {
+            alert("Usuario o contraseña incorrectos");
+        }
+    }
+
+    function cerrarSesion() {
+        document.getElementById("contenido").style.display = "none";
+        document.getElementById("login").style.display = "block";
+    }
+
+    // -------------------------
+    // INVENTARIO
+    // -------------------------
+
+    let lista = JSON.parse(localStorage.getItem("aires")) || [];
+    let editando = -1;
+
+    function mostrar() {
+        const tabla = document.getElementById("listaTabla");
+        tabla.innerHTML = "";
+
+        lista.forEach((a, index) => {
+            tabla.innerHTML += `
+                <tr>
+                    <td>${a.id}</td>
+                    <td>${a.marca}</td>
+                    <td>${a.modelo}</td>
+                    <td>${a.capacidad}</td>
+                    <td>${a.precio}</td>
+                    <td>${a.unidades}</td>
+                    <td><img src="${a.imagen}" width="80"></td>
+                    <td>
+                        <button class="btn-edit" onclick="editar(${index})">Editar</button>
+                        <button class="btn-delete" onclick="eliminar(${index})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function agregarOEditar() {
+        const id = document.getElementById("id").value;
+        const marca = document.getElementById("marca").value;
+        const modelo = document.getElementById("modelo").value;
+        const capacidad = document.getElementById("capacidad").value;
+        const precio = document.getElementById("precio").value;
+        const unidades = document.getElementById("unidades").value;
+        const imagenFile = document.getElementById("imagen").files[0];
+
+        if (!id || !marca || !modelo || !capacidad || !precio || !unidades) {
+            alert("Llena todos los campos");
+            return;
+        }
+
+        if (imagenFile) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                guardarAire(e.target.result);
+            };
+            reader.readAsDataURL(imagenFile);
+        } else {
+            guardarAire(null);
+        }
+    }
+
+    function guardarAire(img) {
+        const aire = {
+            id: document.getElementById("id").value,
+            marca: document.getElementById("marca").value,
+            modelo: document.getElementById("modelo").value,
+            capacidad: document.getElementById("capacidad").value,
+            precio: document.getElementById("precio").value,
+            unidades: document.getElementById("unidades").value,
+            imagen: img || "https://via.placeholder.com/80"
+        };
+
+        if (editando === -1) {
+            lista.push(aire);
+        } else {
+            lista[editando] = aire;
+            editando = -1;
+        }
+
+        localStorage.setItem("aires", JSON.stringify(lista));
+        mostrar();
+        limpiar();
+    }
+
+    function editar(index) {
+        editando = index;
+
+        const a = lista[index];
+        document.getElementById("id").value = a.id;
+        document.getElementById("marca").value = a.marca;
+        document.getElementById("modelo").value = a.modelo;
+        document.getElementById("capacidad").value = a.capacidad;
+        document.getElementById("precio").value = a.precio;
+        document.getElementById("unidades").value = a.unidades;
+    }
+
+    function eliminar(index) {
+        lista.splice(index, 1);
+        localStorage.setItem("aires", JSON.stringify(lista));
+        mostrar();
+    }
+
+    function limpiar() {
+        document.getElementById("id").value = "";
+        document.getElementById("marca").value = "";
+        document.getElementById("modelo").value = "";
+        document.getElementById("capacidad").value = "";
+        document.getElementById("precio").value = "";
+        document.getElementById("unidades").value = "";
+        document.getElementById("imagen").value = "";
+    }
+
+    mostrar();
+</script>
+
+</body>
+</html>
